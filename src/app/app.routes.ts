@@ -52,6 +52,13 @@ export const APP_ROUTES: Routes = [
     canActivate: [FocusOverlayOpenGuard],
   },
   {
+    path: 'trash',
+    loadComponent: () =>
+      import('./routes/pages.routes').then((m) => m.TrashPageComponent),
+    data: { page: 'trash' },
+    canActivate: [FocusOverlayOpenGuard],
+  },
+  {
     path: 'scheduled-list',
     loadComponent: () =>
       import('./routes/pages.routes').then((m) => m.ScheduledListPageComponent),

@@ -114,5 +114,13 @@ export const APP_FEATURES_FORM_CFG: ConfigFormSection<AppFeaturesConfig> = {
         icon: 'heart_check',
       },
     },
+    {
+      key: 'isTrashEnabled',
+      type: 'slide-toggle',
+      templateOptions: {
+        label: T.GCF.APP_FEATURES.TRASH,
+        icon: 'delete',
+      },
+    },
   ],
 };
