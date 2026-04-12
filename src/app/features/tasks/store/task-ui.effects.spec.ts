@@ -285,6 +285,8 @@ describe('TaskUiEffects', () => {
   });
 
   describe('snackDelete$', () => {
+    let isTrashEnabled: boolean;
+
     const createMockTaskWithSubTasks = (
       overrides: Partial<TaskWithSubTasks> = {},
     ): TaskWithSubTasks => ({
@@ -294,6 +296,7 @@ describe('TaskUiEffects', () => {
     });
 
     beforeEach(() => {
+      isTrashEnabled = false;
       actions$ = new Subject<Action>();
       snackServiceMock = jasmine.createSpyObj('SnackService', ['open']);
       taskServiceMock = jasmine.createSpyObj('TaskService', ['setSelectedId']);
@@ -329,7 +332,10 @@ describe('TaskUiEffects', () => {
           },
           {
             provide: GlobalConfigService,
-            useValue: { sound$: of({ doneSound: null }) },
+            useValue: {
+              sound$: of({ doneSound: null }),
+              appFeatures: () => ({ isTrashEnabled }),
+            },
           },
           { provide: Router, useValue: jasmine.createSpyObj('Router', ['navigate']) },
         ],
@@ -385,6 +391,21 @@ describe('TaskUiEffects', () => {
       );
 
       expect(snackServiceMock.open).toHaveBeenCalled();
+      sub.unsubscribe();
+    });
+
+    // With trash on, the delete is soft and TrashEffects opens its own snack
+    // with the restore action; both would race for the same slot.
+    it('should NOT show the undo snack when the trash bin is enabled', () => {
+      isTrashEnabled = true;
+      const sub = effects.snackDelete$.subscribe();
+      actions$.next(
+        TaskSharedActions.deleteTask({
+          task: createMockTaskWithSubTasks({ title: 'Real task' }),
+        }),
+      );
+
+      expect(snackServiceMock.open).not.toHaveBeenCalled();
       sub.unsubscribe();
     });
   });

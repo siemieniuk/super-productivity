@@ -8,6 +8,7 @@ import { TaskReminderOptionId } from '../tasks/task.model';
 import { GlobalConfigState } from './global-config.model';
 import { INBOX_PROJECT } from '../project/project.const';
 import { DEFAULT_MAX_BACKUP_FILES } from '../../../../electron/shared-with-frontend/backup-file-cleanup.util';
+import { TRASH_DEFAULT_RETENTION_DAYS } from '../trash/trash.const';
 
 const minute = 60 * 1000;
 const defaultTaskNotesTemplate = `**How can I best achieve it now?**
@@ -33,6 +34,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isDonatePageEnabled: true,
     isHabitsEnabled: true,
     isFinishDayEnabled: true,
+    isTrashEnabled: false,
   },
   localization: {
     lng: undefined,
@@ -234,6 +236,10 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isLunchBreakEnabled: false,
     lunchBreakStart: '13:00',
     lunchBreakEnd: '14:00',
+  },
+
+  trash: {
+    retentionDays: TRASH_DEFAULT_RETENTION_DAYS,
   },
 
   sync: {

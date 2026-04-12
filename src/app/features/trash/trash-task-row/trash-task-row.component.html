@@ -1,0 +1,89 @@
+<div
+  class="select-toggle"
+  role="checkbox"
+  tabindex="0"
+  [attr.aria-label]="T.TRASH.TOGGLE_TASK_SELECTION | translate"
+  [attr.aria-checked]="selected()"
+  [class.is-selected]="selected()"
+  (click)="onToggleSelect($event)"
+  (keydown.enter)="onToggleSelect($event)"
+  (keydown.space)="onToggleSelect($event)"
+>
+  <svg
+    class="select-toggle-svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <rect
+      class="select-shape"
+      x="2.5"
+      y="2.5"
+      width="19"
+      height="19"
+      rx="5.5"
+      ry="5.5"
+    />
+    <polyline
+      class="select-check"
+      points="6,12 10.5,16.5 18,8"
+    />
+  </svg>
+</div>
+
+<div class="task-content">
+  <div class="wrap">
+    @if (task().parentId) {
+      <div class="parent-title">&#x21b3; {{ task().title }}</div>
+    } @else {
+      <div class="title">{{ task().title }}</div>
+    }
+
+    <div class="meta">
+      @if (projectName(); as name) {
+        <span class="project-name">
+          <mat-icon inline="true">folder</mat-icon>{{ name }}
+        </span>
+      }
+
+      <tag-list
+        class="planner-tag-list-shared"
+        [isShowProjectTagAlways]="false"
+        [task]="task()"
+      ></tag-list>
+    </div>
+  </div>
+
+  @if (task().priority; as p) {
+    <task-priority-indicator [priority]="p"></task-priority-indicator>
+  }
+
+  @if (task().subTaskIds?.length) {
+    <div class="sub-task-count">
+      <mat-icon inline="true">account_tree</mat-icon>{{ task().subTaskIds?.length }}
+    </div>
+  }
+
+  <div class="deleted-at">
+    {{ item().deletedAt | localeDate: 'shortDate' : undefined : locale() }}
+  </div>
+
+  <div class="actions">
+    <button
+      mat-icon-button
+      [matTooltip]="T.TRASH.RESTORE | translate"
+      (click)="restored.emit(); $event.stopPropagation()"
+    >
+      <mat-icon>restore</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      class="color-warn"
+      [matTooltip]="T.TRASH.DELETE_PERMANENTLY | translate"
+      (click)="deleted.emit(); $event.stopPropagation()"
+    >
+      <mat-icon class="color-warn-i">delete_forever</mat-icon>
+    </button>
+  </div>
+</div>

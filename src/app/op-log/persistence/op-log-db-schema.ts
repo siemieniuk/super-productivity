@@ -12,7 +12,13 @@
  * `db-keys.const.ts` (names) and `db-upgrade.ts` (until that is retired).
  */
 
-import { STORE_NAMES, OPS_INDEXES, DB_NAME, DB_VERSION } from './db-keys.const';
+import {
+  STORE_NAMES,
+  OPS_INDEXES,
+  TRASH_INDEXES,
+  DB_NAME,
+  DB_VERSION,
+} from './db-keys.const';
 
 export interface DbIndexSchema {
   name: string;
@@ -79,5 +85,13 @@ export const OP_LOG_DB_SCHEMA: OpLogDbSchema = {
     { name: STORE_NAMES.CLIENT_ID },
     // keyless singleton metadata records, written with explicit keys
     { name: STORE_NAMES.META },
+    {
+      name: STORE_NAMES.TRASH,
+      keyPath: 'id',
+      indexes: [
+        { name: TRASH_INDEXES.BY_ENTITY_TYPE, keyPath: 'entityType' },
+        { name: TRASH_INDEXES.BY_DELETED_AT, keyPath: 'deletedAt' },
+      ],
+    },
   ],
 };

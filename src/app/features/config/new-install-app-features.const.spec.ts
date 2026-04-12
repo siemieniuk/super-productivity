@@ -23,12 +23,16 @@ describe('NEW_INSTALL_APP_FEATURES', () => {
       isIssuesPanelEnabled: false,
       isFinishDayEnabled: false,
       isFocusModeEnabled: false,
+      isTrashEnabled: false,
     });
   });
 
   it('keeps filling missing keys of existing data with the full default set', () => {
     // Existing users must not lose features they never touched.
-    expect(Object.values(DEFAULT_GLOBAL_CONFIG.appFeatures).every(Boolean)).toBeTrue();
+    const { isTrashEnabled, ...existingFeatures } = DEFAULT_GLOBAL_CONFIG.appFeatures;
+    expect(Object.values(existingFeatures).every(Boolean)).toBeTrue();
+    // Trash changes what delete does, so it stays opt-in for everyone.
+    expect(isTrashEnabled).toBeFalse();
   });
 
   it('is the initial store state outside of E2E runs', () => {
