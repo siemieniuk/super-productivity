@@ -9,7 +9,12 @@
  */
 
 import { IDBPDatabase, IDBPTransaction, unwrap } from 'idb';
-import { FULL_STATE_OPS_META_KEY, STORE_NAMES, OPS_INDEXES, TRASH_INDEXES } from './db-keys.const';
+import {
+  FULL_STATE_OPS_META_KEY,
+  STORE_NAMES,
+  OPS_INDEXES,
+  TRASH_INDEXES,
+} from './db-keys.const';
 import { isFullStateOpType } from '../core/operation.types';
 import { buildFullStateOpsMeta, FullStateOpRef } from './full-state-ops-meta';
 

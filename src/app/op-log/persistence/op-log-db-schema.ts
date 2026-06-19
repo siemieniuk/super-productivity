@@ -80,5 +80,6 @@ export const OP_LOG_DB_SCHEMA: OpLogDbSchema = {
     { name: STORE_NAMES.CLIENT_ID },
     // keyless singleton metadata records, written with explicit keys
     { name: STORE_NAMES.META },
+    { name: STORE_NAMES.TRASH },
   ],
 };

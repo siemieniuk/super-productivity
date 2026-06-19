@@ -1,5 +1,10 @@
 import { runDbUpgrade } from './db-upgrade';
-import { FULL_STATE_OPS_META_KEY, STORE_NAMES, OPS_INDEXES } from './db-keys.const';
+import {
+  FULL_STATE_OPS_META_KEY,
+  STORE_NAMES,
+  OPS_INDEXES,
+  TRASH_INDEXES,
+} from './db-keys.const';
 import { deleteDB, openDB } from 'idb';
 import { OpType } from '../core/operation.types';
 
@@ -157,7 +162,8 @@ describe('runDbUpgrade', () => {
       // Version 3 only adds an index, doesn't create stores
       // Version 4 creates archive stores, version 5 profile_data,
       // version 6 client_id, version 7 meta.
-      expect(db.createObjectStore).toHaveBeenCalledTimes(5);
+      // Version 8 creates trash store
+      expect(db.createObjectStore).toHaveBeenCalledTimes(6);
       expect(db.createObjectStore).not.toHaveBeenCalledWith(
         STORE_NAMES.OPS,
         jasmine.anything(),
@@ -219,7 +225,7 @@ describe('runDbUpgrade', () => {
 
       runDbUpgrade(db, 5, tx);
 
-      expect(db.createObjectStore).toHaveBeenCalledTimes(2); // client_id, meta
+      expect(db.createObjectStore).toHaveBeenCalledTimes(3); // client_id, meta
       expect(db.createObjectStore).toHaveBeenCalledWith(STORE_NAMES.CLIENT_ID);
       expect(db.createObjectStore).toHaveBeenCalledWith(STORE_NAMES.META);
     });
@@ -235,13 +241,14 @@ describe('runDbUpgrade', () => {
       expect(db.createObjectStore).toHaveBeenCalledWith(STORE_NAMES.META);
     });
 
-    it('should not recreate earlier stores', () => {
+    it('should not recreate stores before version 7', () => {
       const preExisting = new Map([[STORE_NAMES.OPS, { store: createMockStore() }]]);
       const { db, tx } = createMocks(preExisting);
 
       runDbUpgrade(db, 6, tx);
 
-      expect(db.createObjectStore).toHaveBeenCalledTimes(1);
+      expect(db.createObjectStore).toHaveBeenCalledTimes(2); // meta
+      expect(db.createObjectStore).toHaveBeenCalledWith(STORE_NAMES.META);
     });
 
     it('should populate full-state metadata from existing ops', async () => {
@@ -298,7 +305,62 @@ describe('runDbUpgrade', () => {
     });
   });
 
-  describe('full upgrade path (version 0 to 7)', () => {
+  describe('version 8 upgrade (from version 7', () => {
+    it('should create trash store', () => {
+      const preExisting = new Map([[STORE_NAMES.OPS, { store: createMockStore() }]]);
+      const { db, tx } = createMocks(preExisting);
+
+      runDbUpgrade(db, 7, tx);
+
+      expect(db.createObjectStore).toHaveBeenCalledWith(STORE_NAMES.TRASH, {
+        keyPath: 'id',
+      });
+    });
+
+    it('should create by_entity_type index on trash store', () => {
+      const { db, tx, stores } = createMocks();
+
+      runDbUpgrade(db, 7, tx);
+
+      const trashStore = stores.get(STORE_NAMES.TRASH)?.store;
+      expect(trashStore.createIndex).toHaveBeenCalledWith(
+        TRASH_INDEXES.BY_ENTITY_TYPE,
+        'entityType',
+        {
+          unique: false,
+        },
+      );
+    });
+
+    it('should create by_deleted_at index on trash store', () => {
+      const { db, tx, stores } = createMocks();
+
+      runDbUpgrade(db, 7, tx);
+
+      const trashStore = stores.get(STORE_NAMES.TRASH)?.store;
+      expect(trashStore.createIndex).toHaveBeenCalledWith(
+        TRASH_INDEXES.BY_DELETED_AT,
+        'deletedAt',
+        {
+          unique: false,
+        },
+      );
+    });
+
+    it('should not recreate earlier stores', () => {
+      const preExisting = new Map([
+        [STORE_NAMES.OPS, { store: createMockStore() }],
+        [STORE_NAMES.META, { store: createMockStore() }],
+      ]);
+      const { db, tx } = createMocks(preExisting);
+
+      runDbUpgrade(db, 7, tx);
+
+      expect(db.createObjectStore).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('full upgrade path (version 0 to 8)', () => {
     it('should create all stores and indexes when upgrading from version 0', () => {
       const { db, tx } = createMocks();
 
@@ -343,8 +405,14 @@ describe('runDbUpgrade', () => {
       // Version 7 store
       expect(db.createObjectStore).toHaveBeenCalledWith(STORE_NAMES.META);
 
-      // Total: 9 stores created
-      expect(db.createObjectStore).toHaveBeenCalledTimes(9);
+      // Version 8 store
+      expect(db.createObjectStore).toHaveBeenCalledWith(
+        STORE_NAMES.TRASH,
+        jasmine.anything(),
+      );
+
+      // Total: 10 stores created
+      expect(db.createObjectStore).toHaveBeenCalledTimes(10);
     });
 
     it('should create all indexes on ops store when upgrading from version 0', () => {
