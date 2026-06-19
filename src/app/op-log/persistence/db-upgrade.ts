@@ -172,7 +172,7 @@ export const runDbUpgrade = (
   // Version 12: Add trash store for soft-deleted entities.
   // Uses one record per item (keyed by id) with indexes on entityType and
   // deletedAt so we can efficiently query by type and range-purge expired items.
-  if (oldVersion < 12) {
+  if (oldVersion < 12 && db.version >= 12) {
     const trashStore = db.createObjectStore(STORE_NAMES.TRASH, { keyPath: 'id' });
     trashStore.createIndex(TRASH_INDEXES.BY_ENTITY_TYPE, 'entityType', {
       unique: false,

@@ -45,12 +45,6 @@ export const STORE_NAMES = {
   TRASH: 'trash' as const,
 } as const;
 
-/** Index names for trash object store */
-export const TRASH_INDEXES = {
-  BY_ENTITY_TYPE: 'entityType' as const,
-  BY_DELETED_AT: 'deletedAt' as const,
-} as const;
-
 /** Common key used for singleton entries */
 export const SINGLETON_KEY = 'current' as const;
 
@@ -98,3 +92,9 @@ export interface ArchiveStoreEntry {
   data: ArchiveModel;
   lastModified: number;
 }
+
+/** Index names for trash object store */
+export const TRASH_INDEXES = {
+  BY_ENTITY_TYPE: 'entityType' as const,
+  BY_DELETED_AT: 'deletedAt' as const,
+} as const;
