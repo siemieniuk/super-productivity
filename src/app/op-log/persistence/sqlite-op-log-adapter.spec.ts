@@ -620,6 +620,7 @@ describe('SqliteOpLogAdapter — translation layer (fake)', () => {
     expect(
       plans.find((p) => p.table === STORE_NAMES.VECTOR_CLOCK)!.keyJsonPath,
     ).toBeUndefined();
+    expect(plans.find((p) => p.table === STORE_NAMES.TRASH)!.keyJsonPath).toBe('$.id');
   });
 
   it('buildDdl emits AUTOINCREMENT, a UNIQUE byId index and the composite index', () => {

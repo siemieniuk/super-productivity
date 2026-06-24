@@ -27,6 +27,11 @@ import {
   selectTaskRepeatCfgsByProjectId,
   selectTaskRepeatCfgsByTagId,
 } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
+import {
+  selectStartOfNextDayDiffMs,
+  selectTodayStr,
+} from '../../root-store/app-state/app-state.selectors';
+import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { TODAY_TAG } from '../tag/tag.const';
 
 /**
@@ -43,6 +48,17 @@ const buildTask = (id: string, subTasks: TaskWithSubTasks[] = []): TaskWithSubTa
   ({ id, subTasks }) as unknown as TaskWithSubTasks;
 
 describe('WorkViewComponent', () => {
+  let store: MockStore;
+
+  // overrideSelector() calls setResult() on the GLOBAL selector singletons, and
+  // NgRx MockStore does not auto-clear them between specs. Without this, the
+  // frozen today/offset values (selectTodayStr, selectStartOfNextDayDiffMs) leak
+  // into later specs (e.g. planner.selectors, task.selectors) under Jasmine's
+  // randomized spec order and make their "today" assertions fail intermittently.
+  afterEach(() => {
+    store?.resetSelectors();
+  });
+
   describe('selected task retention effect', () => {
     let selectedTaskId: ReturnType<typeof signal<string | null>>;
     let setSelectedId: jasmine.Spy;
@@ -52,7 +68,6 @@ describe('WorkViewComponent', () => {
     let customizeSource: () => Observable<{ list: TaskWithSubTasks[] }>;
     let isCustomized: ReturnType<typeof signal<boolean>>;
     let activeWorkContextId: string;
-    let store: MockStore;
 
     const createComponent = async (
       inputs: {
@@ -141,6 +156,10 @@ describe('WorkViewComponent', () => {
           },
           { provide: SnackService, useValue: { open: () => {} } },
           {
+            provide: CalendarIntegrationService,
+            useValue: { calendarEvents$: of([]) },
+          },
+          {
             provide: GlobalConfigService,
             useValue: {
               appFeatures: signal({ isFinishDayEnabled: false }),
@@ -163,6 +182,8 @@ describe('WorkViewComponent', () => {
       store.overrideSelector(selectLaterTodayTasksWithSubTasks, []);
       store.overrideSelector(selectTaskRepeatCfgsByProjectId, []);
       store.overrideSelector(selectTaskRepeatCfgsByTagId, []);
+      store.overrideSelector(selectTodayStr, '2026-06-23');
+      store.overrideSelector(selectStartOfNextDayDiffMs, 0);
     });
 
     it('deselects when the task is absent from every list', async () => {
@@ -351,6 +372,10 @@ describe('WorkViewComponent', () => {
           },
           { provide: SnackService, useValue: { open: () => {} } },
           {
+            provide: CalendarIntegrationService,
+            useValue: { calendarEvents$: of([]) },
+          },
+          {
             provide: GlobalConfigService,
             useValue: {
               appFeatures: signal({ isFinishDayEnabled: false }),
@@ -363,11 +388,13 @@ describe('WorkViewComponent', () => {
       TestBed.overrideComponent(WorkViewComponent, {
         set: { template: '', imports: [], styles: [''] },
       });
-      const store = TestBed.inject(MockStore);
+      store = TestBed.inject(MockStore);
       store.overrideSelector(selectOverdueTasksWithSubTasks, []);
       store.overrideSelector(selectLaterTodayTasksWithSubTasks, []);
       store.overrideSelector(selectTaskRepeatCfgsByProjectId, []);
       store.overrideSelector(selectTaskRepeatCfgsByTagId, []);
+      store.overrideSelector(selectTodayStr, '2026-06-23');
+      store.overrideSelector(selectStartOfNextDayDiffMs, 0);
 
       await TestBed.compileComponents();
       const fixture = TestBed.createComponent(WorkViewComponent);

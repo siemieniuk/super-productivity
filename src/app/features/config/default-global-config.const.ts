@@ -34,6 +34,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isEnableUserProfiles: false,
     isHabitsEnabled: true,
     isFinishDayEnabled: true,
+    isTrashEnabled: false,
   },
   localization: {
     lng: undefined,
@@ -63,8 +64,9 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     // NOTE: isUseCustomWindowTitleBar is intentionally NOT defaulted here. A
     // persisted default would be pushed to Electron on every launch and override
     // a legacy `isUseObsidianStyleHeader` choice. Its effective default is resolved
-    // at read time (main-window.ts / global-theme.service.ts: `?? !IS_GNOME_DESKTOP`)
-    // and the settings checkbox is seeded display-only in misc-settings-form (#7891).
+    // at read time (main-window.ts / global-theme.service.ts: defaults on, forced
+    // off only on GNOME+Wayland) and the settings checkbox is seeded display-only
+    // in misc-settings-form (#7891).
     isShowProductivityTipLonger: false,
     customTheme: 'default',
     defaultStartPage: 0,
@@ -222,6 +224,10 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isLunchBreakEnabled: false,
     lunchBreakStart: '13:00',
     lunchBreakEnd: '14:00',
+  },
+
+  trash: {
+    retentionDays: 30,
   },
 
   sync: {

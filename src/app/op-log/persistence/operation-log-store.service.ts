@@ -1,3 +1,4 @@
+import { TrashedItem } from './../../features/trash/trash.model';
 import { inject, Injectable } from '@angular/core';
 import type { RemoteOperationApplyStorePort } from '@sp/sync-core';
 import { DBSchema, IDBPDatabase, openDB } from 'idb';
@@ -205,6 +206,10 @@ interface OpLogDB extends DBSchema {
   [STORE_NAMES.META]: {
     key: string;
     value: FullStateOpsMetaEntry;
+  };
+  [STORE_NAMES.TRASH]: {
+    key: string;
+    value: TrashedItem;
   };
 }
 

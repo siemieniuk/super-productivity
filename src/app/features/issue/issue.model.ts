@@ -18,11 +18,7 @@ import {
   ICalIssue,
   ICalIssueReduced,
 } from './providers/calendar/calendar.model';
-import { AzureDevOpsCfg } from './providers/azure-devops/azure-devops.model';
-import {
-  AzureDevOpsIssue,
-  AzureDevOpsIssueReduced,
-} from './providers/azure-devops/azure-devops-issue/azure-devops-issue.model';
+// Azure DevOps is now a plugin — no built-in Cfg/Issue types needed
 import { NextcloudDeckCfg } from './providers/nextcloud-deck/nextcloud-deck.model';
 import {
   NextcloudDeckIssue,
@@ -39,7 +35,11 @@ export interface BaseIssueProviderCfg {
   isEnabled: boolean;
 }
 
-// Built-in issue provider keys (strict union for type safety)
+// Built-in issue provider keys (strict union for type safety).
+// NOTE: adding a key here is forward-compatible for OLDER clients only because
+// `isForwardCompatibleProviderKeyError` (op-log/validation/validation-fn.ts) tolerates
+// unknown provider-key values during sync validation. Without that, an older build's
+// typia validator would treat a synced task/provider using the new key as corruption.
 export type BuiltInIssueProviderKey =
   | 'JIRA'
   | 'GITLAB'
@@ -47,7 +47,6 @@ export type BuiltInIssueProviderKey =
   | 'ICAL'
   | 'OPEN_PROJECT'
   | 'REDMINE'
-  | 'AZURE_DEVOPS'
   | 'NEXTCLOUD_DECK'
   | 'PLAINSPACE';
 
@@ -57,7 +56,8 @@ export type MigratedIssueProviderKey =
   | 'CLICKUP'
   | 'GITEA'
   | 'LINEAR'
-  | 'TRELLO';
+  | 'TRELLO'
+  | 'AZURE_DEVOPS';
 
 // Plugin issue provider keys use a 'plugin:' prefix to avoid collision
 export type PluginIssueProviderKey = `plugin:${string}`;
@@ -81,7 +81,6 @@ const BUILT_IN_KEYS: ReadonlySet<string> = new Set<BuiltInIssueProviderKey>([
   'ICAL',
   'OPEN_PROJECT',
   'REDMINE',
-  'AZURE_DEVOPS',
   'NEXTCLOUD_DECK',
   'PLAINSPACE',
 ]);
@@ -92,6 +91,7 @@ const MIGRATED_KEYS: ReadonlySet<string> = new Set<MigratedIssueProviderKey>([
   'GITEA',
   'LINEAR',
   'TRELLO',
+  'AZURE_DEVOPS',
 ]);
 
 export const isValidIssueProviderKey = (key: string): key is IssueProviderKey => {
@@ -105,7 +105,6 @@ export type IssueIntegrationCfg =
   | CalendarProviderCfg
   | OpenProjectCfg
   | RedmineCfg
-  | AzureDevOpsCfg
   | NextcloudDeckCfg
   | PlainspaceCfg;
 
@@ -123,7 +122,6 @@ export interface IssueIntegrationCfgs {
   CALENDAR?: CalendarProviderCfg;
   OPEN_PROJECT?: OpenProjectCfg;
   REDMINE?: RedmineCfg;
-  AZURE_DEVOPS?: AzureDevOpsCfg;
   NEXTCLOUD_DECK?: NextcloudDeckCfg;
   PLAINSPACE?: PlainspaceCfg;
 }
@@ -135,7 +133,6 @@ export type IssueData =
   | ICalIssue
   | OpenProjectWorkPackage
   | RedmineIssue
-  | AzureDevOpsIssue
   | NextcloudDeckIssue
   | PlainspaceIssue
   | PluginIssue;
@@ -147,7 +144,6 @@ export type IssueDataReduced =
   | CaldavIssueReduced
   | ICalIssueReduced
   | RedmineIssue
-  | AzureDevOpsIssueReduced
   | NextcloudDeckIssueReduced
   | PlainspaceIssue
   | PluginSearchResult;
@@ -165,17 +161,15 @@ export type IssueDataReducedMap = {
             ? OpenProjectWorkPackageReduced
             : K extends 'REDMINE'
               ? RedmineIssue
-              : K extends 'AZURE_DEVOPS'
-                ? AzureDevOpsIssueReduced
-                : K extends 'NEXTCLOUD_DECK'
-                  ? NextcloudDeckIssueReduced
-                  : K extends 'PLAINSPACE'
-                    ? PlainspaceIssue
-                    : K extends MigratedIssueProviderKey
+              : K extends 'NEXTCLOUD_DECK'
+                ? NextcloudDeckIssueReduced
+                : K extends 'PLAINSPACE'
+                  ? PlainspaceIssue
+                  : K extends MigratedIssueProviderKey
+                    ? PluginSearchResult
+                    : K extends PluginIssueProviderKey
                       ? PluginSearchResult
-                      : K extends PluginIssueProviderKey
-                        ? PluginSearchResult
-                        : never;
+                      : never;
 };
 
 // TODO: add issue model to the IssueDataReducedMap
@@ -269,8 +263,10 @@ export interface IssueProviderLinear extends IssueProviderBase {
   pluginConfig: Record<string, unknown>;
 }
 
-export interface IssueProviderAzureDevOps extends IssueProviderBase, AzureDevOpsCfg {
+export interface IssueProviderAzureDevOps extends IssueProviderBase {
   issueProviderKey: 'AZURE_DEVOPS';
+  pluginId: string;
+  pluginConfig: Record<string, unknown>;
 }
 
 export interface IssueProviderNextcloudDeck extends IssueProviderBase, NextcloudDeckCfg {

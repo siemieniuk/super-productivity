@@ -28,6 +28,7 @@ import {
   animationFrameScheduler,
   from,
   fromEvent,
+  interval,
   Observable,
   ReplaySubject,
   Subscription,
@@ -35,7 +36,7 @@ import {
   zip,
 } from 'rxjs';
 import { TaskWithSubTasks } from '../tasks/task.model';
-import { delay, filter, map, observeOn, switchMap } from 'rxjs/operators';
+import { delay, filter, map, observeOn, startWith, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { fadeAnimation } from '../../ui/animations/fade.ani';
 import { T } from '../../t.const';
@@ -70,6 +71,14 @@ import {
   selectLaterTodayTasksWithSubTasks,
   selectOverdueTasksWithSubTasks,
 } from '../tasks/store/task.selectors';
+import {
+  selectStartOfNextDayDiffMs,
+  selectTodayStr,
+} from '../../root-store/app-state/app-state.selectors';
+import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
+import { PlannerCalendarEventComponent } from '../planner/planner-calendar-event/planner-calendar-event.component';
+import { ScheduleCalendarMapEntry } from '../schedule/schedule.model';
+import { getLaterTodayCalendarEvents } from './get-later-today-calendar-events';
 import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
 import { SnackService } from '../../core/snack/snack.service';
 import { GlobalConfigService } from '../config/global-config.service';
@@ -132,6 +141,7 @@ const INITIAL_CUSTOMIZED_UNDONE_TASKS: CustomizedUndoneTasks = { list: [] };
     RepeatCfgPreviewComponent,
     PluginIndexComponent,
     PlainspaceClaimPoolComponent,
+    PlannerCalendarEventComponent,
   ],
 })
 export class WorkViewComponent implements OnInit, OnDestroy {
@@ -154,6 +164,7 @@ export class WorkViewComponent implements OnInit, OnDestroy {
   private _destroyRef = inject(DestroyRef);
   private _dateService = inject(DateService);
   private _pluginBridge = inject(PluginBridgeService);
+  private _calendarIntegrationService = inject(CalendarIntegrationService);
   protected readonly dragDelayForTouch = dragDelayForTouch;
 
   isProjectContext = toSignal(this.workContextService.isActiveWorkContextProject$, {
@@ -198,6 +209,35 @@ export class WorkViewComponent implements OnInit, OnDestroy {
   });
   laterTodayTasks = toSignal(this._store.select(selectLaterTodayTasksWithSubTasks), {
     initialValue: [],
+  });
+  // Calendar events are not in the store — sourced live (cached + polled,
+  // shareReplay/refCount) from the calendar integration. Shown as read-only
+  // outlines in the "Later Today" section, mirroring the planner.
+  private _calendarEventEntries = toSignal(
+    this._calendarIntegrationService.calendarEvents$,
+    { initialValue: [] as ScheduleCalendarMapEntry[] },
+  );
+  private _todayStr = toSignal(this._store.select(selectTodayStr), {
+    initialValue: '',
+  });
+  private _startOfNextDayDiffMs = toSignal(
+    this._store.select(selectStartOfNextDayDiffMs),
+    { initialValue: 0 },
+  );
+  // Re-evaluate the now/end-of-today window on a coarse tick so events drop out
+  // of "Later Today" once they start, without waiting for the next calendar
+  // poll (iCal polls up to every 2h). Mirrors ScheduleService.scheduleRefreshTick.
+  private _refreshTick = toSignal(interval(2 * 60 * 1000).pipe(startWith(0)), {
+    initialValue: 0,
+  });
+  laterTodayCalendarEvents = computed(() => {
+    this._refreshTick();
+    return getLaterTodayCalendarEvents(
+      this._calendarEventEntries(),
+      this._todayStr(),
+      this._startOfNextDayDiffMs(),
+      Date.now(),
+    );
   });
   undoneTasks = input.required<TaskWithSubTasks[]>();
   customizedUndoneTasks = toSignal(
