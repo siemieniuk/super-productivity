@@ -22,6 +22,7 @@ const BASE_FEATURES: AppFeaturesConfig = {
   isDonatePageEnabled: true,
   isHabitsEnabled: false,
   isFinishDayEnabled: false,
+  isTrashEnabled: false,
 };
 
 export const ONBOARDING_PRESETS: OnboardingPreset[] = [

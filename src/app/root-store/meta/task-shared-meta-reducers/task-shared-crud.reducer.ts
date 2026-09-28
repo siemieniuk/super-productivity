@@ -58,6 +58,12 @@ import {
   updateTags,
 } from './task-shared-helpers';
 import { plannerFeatureKey } from '../../../features/planner/store/planner.reducer';
+import { TrashActions } from '../../../features/trash/store/trash.actions';
+import {
+  TaskRestoreContext,
+  TrashedItem,
+  TrashedTask,
+} from '../../../features/trash/trash.model';
 
 // =============================================================================
 // ACTION HANDLERS
@@ -733,6 +739,124 @@ const handleRestoreDeletedTask = (
   return updatedState;
 };
 
+// =============================================================================
+// TRASH HANDLERS (task entity)
+// =============================================================================
+
+/**
+ * Handles moveToTrash for items with entityType === 'TASK'. Performs the same
+ * state cleanup as deleteTask for each trashed task. The actual persistence to
+ * IndexedDB happens in TrashEffects.
+ */
+const handleMoveTasksToTrash = (state: RootState, items: TrashedItem[]): RootState => {
+  const taskItems = items.filter((i): i is TrashedTask => i.entityType === 'TASK');
+  if (taskItems.length === 0) return state;
+
+  // Only remove main tasks via handleDeleteTask — their subtasks are cleaned
+  // up by deleteTaskHelper. Any sub-task-only trash items are already handled.
+  const mainItems = taskItems.filter(
+    (i) => !(i.restoreContext as TaskRestoreContext).parentId,
+  );
+
+  let updatedState = state;
+  for (const item of mainItems) {
+    const entities = updatedState[TASK_FEATURE_NAME].entities;
+    const existing = entities[item.id];
+    if (!existing) continue;
+    const subTasks = (existing.subTaskIds || [])
+      .map((id) => entities[id])
+      .filter((t): t is Task => !!t);
+    updatedState = handleDeleteTask(updatedState, { ...existing, subTasks });
+  }
+  return updatedState;
+};
+
+/**
+ * Handles restoreFromTrash for task items. Re-adds the task (and any subtasks
+ * stored alongside it in the trash) and restores project/tag/parent links from
+ * the persisted restore context.
+ */
+const handleRestoreTaskFromTrash = (state: RootState, itemId: string): RootState => {
+  const trashState = (state as any).trash;
+  if (!trashState?.entities) return state;
+
+  const mainItem = trashState.entities[itemId] as TrashedTask | undefined;
+  if (!mainItem || mainItem.entityType !== 'TASK') return state;
+
+  const ctx = mainItem.restoreContext as TaskRestoreContext;
+
+  // Collect subtasks that are also currently in the trash. This lets us restore
+  // subtask entities in the same pass so the parent's subTaskIds is valid.
+  const subTaskItems: TrashedTask[] = (ctx.subTaskIds || [])
+    .map((id) => trashState.entities[id] as TrashedTask | undefined)
+    .filter((i): i is TrashedTask => !!i && i.entityType === 'TASK');
+
+  const tasksToAdd: Task[] = [
+    { ...mainItem.data, modified: Date.now() },
+    ...subTaskItems.map((s) => ({ ...s.data, modified: Date.now() })),
+  ];
+
+  let updatedState: RootState = {
+    ...state,
+    [TASK_FEATURE_NAME]: taskAdapter.addMany(tasksToAdd, state[TASK_FEATURE_NAME]),
+  };
+
+  // Restore project association — main task only (subtasks inherit via parent).
+  if (!ctx.parentId && ctx.projectId) {
+    const project = updatedState[PROJECT_FEATURE_NAME].entities[ctx.projectId];
+    if (project) {
+      const listKey: ProjectTaskList = ctx.backlog ? 'backlogTaskIds' : 'taskIds';
+      const currentIds = project[listKey] || [];
+      if (!currentIds.includes(mainItem.id)) {
+        updatedState = updateProject(updatedState, ctx.projectId, {
+          [listKey]: [mainItem.id, ...currentIds],
+        });
+      }
+    }
+  }
+
+  // Restore tag associations (only for tags that still exist).
+  const tagUpdates: Update<Tag>[] = ctx.tagIds
+    .filter((tagId) => !!updatedState[TAG_FEATURE_NAME].entities[tagId])
+    .filter((tagId) => tagId !== TODAY_TAG.id)
+    .map((tagId) => {
+      const tag = getTag(updatedState, tagId);
+      return {
+        id: tagId,
+        changes: {
+          taskIds: tag.taskIds.includes(mainItem.id)
+            ? tag.taskIds
+            : [mainItem.id, ...tag.taskIds],
+        },
+      };
+    });
+  if (tagUpdates.length > 0) {
+    updatedState = updateTags(updatedState, tagUpdates);
+  }
+
+  // Re-link to parent if this was a sub-task.
+  if (ctx.parentId) {
+    const parent = updatedState[TASK_FEATURE_NAME].entities[ctx.parentId];
+    if (parent) {
+      const currentSubIds = parent.subTaskIds || [];
+      if (!currentSubIds.includes(mainItem.id)) {
+        updatedState = {
+          ...updatedState,
+          [TASK_FEATURE_NAME]: taskAdapter.updateOne(
+            {
+              id: ctx.parentId,
+              changes: { subTaskIds: [...currentSubIds, mainItem.id] },
+            },
+            updatedState[TASK_FEATURE_NAME],
+          ),
+        };
+      }
+    }
+  }
+
+  return updatedState;
+};
+
 // Legacy-op replay defense: current clients never emit a synthetic completion
 // `dueDay` (completion records only `doneOn`), but ops captured by OLDER clients
 // can carry `{ isDone: true, dueDay: <completionDay> }`. This strips that synthetic
@@ -1112,6 +1236,17 @@ const createActionHandlers = (state: RootState, action: Action): ActionHandlerMa
       state,
       action as ReturnType<typeof TaskSharedActions.restoreDeletedTask>,
     );
+  },
+  [TrashActions.moveToTrash.type]: () => {
+    const { items } = action as ReturnType<typeof TrashActions.moveToTrash>;
+    return handleMoveTasksToTrash(state, items);
+  },
+  [TrashActions.restoreFromTrash.type]: () => {
+    const { itemId, entityType } = action as ReturnType<
+      typeof TrashActions.restoreFromTrash
+    >;
+    if (entityType !== 'TASK') return state;
+    return handleRestoreTaskFromTrash(state, itemId);
   },
   [TaskSharedActions.updateTask.type]: () => {
     const { task, projectMoveSubTaskIds } = action as ReturnType<
