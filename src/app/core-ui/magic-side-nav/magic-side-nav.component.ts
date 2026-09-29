@@ -418,10 +418,8 @@ export class MagicSideNavComponent implements OnDestroy, AfterViewInit {
   private _handleDrag(event: MouseEvent): void {
     if (!this.isResizing()) return;
 
-    const deltaX =
-      // this.config().position === 'right'
-      //   ? this.startX() - event.clientX
-      event.clientX - this.startX();
+    const dirSign = document.dir === 'rtl' ? -1 : 1;
+    const deltaX = (event.clientX - this.startX()) * dirSign;
 
     const potentialWidth = this.startWidth() + deltaX;
     const { collapseThreshold, expandThreshold, minWidth, maxWidth } = this.config();
