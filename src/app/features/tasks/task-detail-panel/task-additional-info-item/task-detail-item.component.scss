@@ -258,3 +258,8 @@
     display: block !important;
   }
 }
+
+// Fix for RTL locales to support mat-icons
+:host::ng-deep mat-icon {
+  direction: inherit;
+}
