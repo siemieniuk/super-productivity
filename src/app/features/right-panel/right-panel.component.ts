@@ -492,7 +492,8 @@ export class RightPanelComponent implements AfterViewInit, OnDestroy {
     }
     this._lastDragTime = now;
 
-    const deltaX = this._startX() - event.clientX;
+    const dirSign = document.dir === 'rtl' ? -1 : 1;
+    const deltaX = (this._startX() - event.clientX) * dirSign;
     const potentialWidth = this._startWidth() + deltaX;
     const isCollapsing = deltaX < 0;
 
