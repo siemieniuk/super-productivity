@@ -353,11 +353,8 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
       return;
     }
 
-    const task = this.data.task;
-    // Snapshot before unscheduling so "Undo" can restore the exact prior
-    // scheduling (dueDay/dueWithTime/remindAt) regardless of whether a
-    // reminder was set - removing the schedule always clears all three
-    // together via the same action, so Undo must restore all three too.
+    // apply live task data for snapshot
+    const task = this._liveTask() ?? this.data.task;
     const { dueDay, dueWithTime, remindAt } = task;
 
     this._store.dispatch(

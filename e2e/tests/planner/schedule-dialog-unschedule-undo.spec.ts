@@ -5,6 +5,10 @@ import {
   openTaskDetailPanel,
   scheduleTaskForDay,
 } from '../../utils/schedule-task-helper';
+import {
+  setRecurQuickSetting,
+  setRecurStartDate,
+} from '../../utils/recurring-task-helpers';
 
 const { DIALOG_SCHEDULE_TASK, SCHEDULE_TASK_ITEM, TASK_SCHEDULE_BTN } = cssSelectors;
 
@@ -13,6 +17,42 @@ const getDateWithDayOffset = (dayOffset: number): Date => {
   date.setDate(date.getDate() + dayOffset);
   return date;
 };
+
+const toDbDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+
+const toDdMmYyyy = (d: Date): string =>
+  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}/${d.getFullYear()}`;
+
+/** The persisted dueDay of the task with the given title. */
+const getPersistedDueDay = async (page: Page, title: string): Promise<string | null> =>
+  page.evaluate((taskTitle: string) => {
+    type TaskLike = { title?: string | null; dueDay?: string | null };
+    type StoreState = { tasks?: { entities?: Record<string, TaskLike | undefined> } };
+    type StoreLike = {
+      subscribe: (next: (s: StoreState) => void) => { unsubscribe: () => void };
+    };
+    const store = (window as unknown as { __e2eTestHelpers?: { store?: StoreLike } })
+      .__e2eTestHelpers?.store;
+    if (!store) {
+      throw new Error('__e2eTestHelpers.store missing');
+    }
+    let latest: StoreState | undefined;
+    store
+      .subscribe((s) => {
+        latest = s;
+      })
+      .unsubscribe();
+    const task = Object.values(latest?.tasks?.entities ?? {}).find(
+      (t) => t?.title === taskTitle,
+    );
+    return task?.dueDay ?? null;
+  }, title);
 
 /**
  * Clicks the dialog's "Unschedule" button (remove()), waits for the dialog to
@@ -163,5 +203,60 @@ test.describe('Schedule dialog: undo unschedule button', () => {
     await expect(scheduleBtn).toBeVisible();
     await expect(scheduleBtn.locator('mat-icon')).toHaveText('alarm');
     await expect(scheduleBtn.locator('.time-badge')).toHaveText(badgeTextBefore);
+  });
+
+  test('restores the plan date the repeat sub-dialog set while the dialog stayed open', async ({
+    page,
+    taskPage,
+    workViewPage,
+    waitForNav,
+    testPrefix,
+  }) => {
+    const title = `${testPrefix}-repeat-moved`;
+    const tomorrow = getDateWithDayOffset(1);
+    const dayAfterTomorrow = getDateWithDayOffset(2);
+
+    await workViewPage.waitForTaskList();
+    // Inbox shows the task regardless of dueDay (see the day-only test).
+    await page.getByRole('menuitem', { name: 'Inbox' }).click();
+    await waitForNav();
+    await workViewPage.waitForTaskList();
+    await workViewPage.addTask(title);
+
+    const task = taskPage.getTaskByText(title).first();
+    await expect(task).toBeVisible();
+
+    await scheduleTaskForDay(page, task, tomorrow);
+    await expect.poll(() => getPersistedDueDay(page, title)).toBe(toDbDateStr(tomorrow));
+
+    await task.focus();
+    await page.keyboard.press('s');
+    const scheduleDialog = page.locator(DIALOG_SCHEDULE_TASK);
+    await expect(scheduleDialog).toBeVisible({ timeout: 10000 });
+
+    // Save a daily repeat starting the day after tomorrow from the Repeat
+    // sub-dialog. This moves the live task's dueDay while the schedule dialog
+    // (opened with the "tomorrow" snapshot) stays open.
+    await scheduleDialog.locator('.repeat-btn').click();
+    const repeatDialog = page.locator(
+      'mat-dialog-container:has(dialog-edit-task-repeat-cfg)',
+    );
+    await repeatDialog.waitFor({ state: 'visible', timeout: 10000 });
+    await setRecurQuickSetting(page, /^\s*Every day\s*$/);
+    await setRecurStartDate(page, toDdMmYyyy(dayAfterTomorrow));
+    await repeatDialog.getByRole('button', { name: /Save/i }).click();
+    await repeatDialog.waitFor({ state: 'hidden', timeout: 10000 });
+
+    await expect(scheduleDialog).toBeVisible();
+    await expect
+      .poll(() => getPersistedDueDay(page, title))
+      .toBe(toDbDateStr(dayAfterTomorrow));
+
+    await clickUnscheduleAndUndo(page);
+
+    // Undo must restore the date the repeat set, not the stale snapshot.
+    await expect
+      .poll(() => getPersistedDueDay(page, title))
+      .toBe(toDbDateStr(dayAfterTomorrow));
   });
 });
