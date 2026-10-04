@@ -2,7 +2,7 @@ import { Component, NO_ERRORS_SCHEMA, Provider } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, Subject, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, of } from 'rxjs';
 import { NavigationEnd, Router } from '@angular/router';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { TranslateModule, TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -86,7 +86,7 @@ describe('PageTitleComponent', () => {
       : [
           {
             provide: TranslateService,
-            useValue: { instant: (key: string) => key },
+            useValue: { instant: (key: string) => key, onLangChange: EMPTY },
           },
         ]),
   ];
@@ -361,6 +361,33 @@ describe('PageTitleComponent', () => {
     it('renders no actions at the smallest breakpoint', async () => {
       isXxxs$.next({ matches: true });
       expect(buttons(await renderAt('/active/tasks')).length).toBe(0);
+    });
+  });
+
+  describe('when the language changes', () => {
+    it('re-translates a route title', async () => {
+      await configureRender();
+      const translateService = TestBed.inject(TranslateService);
+      translateService.setTranslation('en', {
+        PS: { GLOBAL_SETTINGS: 'Global Settings' },
+      });
+      translateService.setTranslation('de', {
+        PS: { GLOBAL_SETTINGS: 'Globale Einstellungen' },
+      });
+      translateService.use('en');
+
+      routerStub.url = '/config';
+      const fixture = TestBed.createComponent(PageTitleComponent);
+      fixture.detectChanges();
+      const title = (): string | null | undefined =>
+        (fixture.nativeElement as HTMLElement)
+          .querySelector('.page-title-text')
+          ?.textContent?.trim();
+      expect(title()).toBe('Global Settings');
+
+      translateService.use('de');
+      fixture.detectChanges();
+      expect(title()).toBe('Globale Einstellungen');
     });
   });
 

@@ -385,7 +385,11 @@ export class PageTitleComponent {
   isSpecialSection = computed(() => !!this._routeTitleKey());
   isWorkViewPage = computed(() => /tasks$/.test(this._url()));
 
+  // `instant()` is not reactive, so the computed must track language changes itself.
+  private _lang = toSignal(this._translateService.onLangChange);
+
   displayTitle = computed(() => {
+    this._lang();
     const key = this._routeTitleKey();
     return key ? this._translateService.instant(key) : this.activeWorkContextTitle();
   });
