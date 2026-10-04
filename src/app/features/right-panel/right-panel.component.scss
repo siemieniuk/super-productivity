@@ -182,11 +182,6 @@
     height: 16px;
   }
 
-  // The chevron points toward the closing direction, which mirrors in RTL.
-  :host-context([dir='rtl']) & mat-icon {
-    transform: scaleX(-1);
-  }
-
   // The painted handle stays 20px so it keeps clearing the 8px row margin
   // (#9506). Only the pointer target grows: 20px is under the 24px minimum
   // target size, and the 4px between the handle's right edge and the first row

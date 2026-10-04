@@ -112,7 +112,7 @@ export class RightPanelComponent implements AfterViewInit, OnDestroy {
   readonly sideWidth = input<number>(40);
   readonly wasClosed = output<void>();
 
-  readonly isLocaleRtl = computed(() => this._languageService.isLangRTL);
+  readonly isLocaleRtl = this._languageService.isLangRTL;
 
   // Convert observables to signals to match right-panel-content logic
   private readonly _selectedTask = toSignal(this._taskService.selectedTask$, {
