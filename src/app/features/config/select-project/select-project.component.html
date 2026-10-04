@@ -19,9 +19,18 @@
   [multiple]="to.multiple"
   (selectionChange)="onSelectionChange($event)"
 >
-  @if (to.multiple && triggerLabel()) {
+  @if (props.multiple && triggerLabel()) {
     <mat-select-trigger>
       {{ triggerLabel() }}
+    </mat-select-trigger>
+  } @else if (selectedProject(); as p) {
+    <mat-select-trigger>
+      <select-option-row
+        [title]="p.title"
+        [icon]="p.icon"
+        [defaultIcon]="DEFAULT_PROJECT_ICON"
+        [color]="p.theme?.primary"
+      ></select-option-row>
     </mat-select-trigger>
   }
   @if (!field.props?.hideNoneOption) {

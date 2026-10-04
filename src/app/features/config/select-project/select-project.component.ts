@@ -72,14 +72,14 @@ export class SelectProjectComponent
   private _prevValue: string[] = [];
 
   // Use a manual signal to bridge formControl.valueChanges
-  val = signal<string[]>([]);
+  val = signal<string | string[]>([]);
 
   triggerLabel = computed(() => {
     const val = this.val();
-    if (this.to.multiple && Array.isArray(val)) {
+    if (this.props.multiple && Array.isArray(val)) {
       if (val.includes('')) {
-        return this.to.defaultLabel
-          ? this._translateService.instant(this.to.defaultLabel)
+        return this.props.defaultLabel
+          ? this._translateService.instant(this.props.defaultLabel)
           : this._translateService.instant(T.G.NONE);
       }
       if (val.length > 0) {
@@ -93,6 +93,15 @@ export class SelectProjectComponent
     return null;
   });
 
+  // Needed for icon rendering
+  selectedProject = computed<Project | undefined>(() => {
+    if (this.props.multiple) {
+      return undefined;
+    }
+    const id = this.val();
+    return this.projects().find((p) => p.id === id);
+  });
+
   projectFolderMap = computed(() => this._menuTreeService.projectFolderMap());
 
   constructor() {
@@ -100,7 +109,7 @@ export class SelectProjectComponent
     effect(() => {
       const projects = this.projects();
       // Only run when initialized and for multiple selection
-      if (this.to.multiple && projects.length > 0 && this.formControl) {
+      if (this.props.multiple && projects.length > 0 && this.formControl) {
         const val = this.formControl.value;
         if (Array.isArray(val) && val.includes('')) {
           const allIds = projects.map((p) => p.id);
@@ -125,7 +134,7 @@ export class SelectProjectComponent
   }
 
   get type(): string {
-    return this.to.type || 'text';
+    return this.props.type || 'text';
   }
 
   trackById(i: number, item: Project): string {
@@ -133,7 +142,7 @@ export class SelectProjectComponent
   }
 
   onSelectionChange(ev: MatSelectChange): void {
-    if (!this.to.multiple) {
+    if (!this.props.multiple) {
       return;
     }
 
