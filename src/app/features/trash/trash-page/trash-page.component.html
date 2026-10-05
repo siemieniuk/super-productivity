@@ -1,0 +1,49 @@
+<div class="trash-page">
+  @if (trashedTasks().length > 0) {
+    <div class="callout callout--info">
+      <mat-icon aria-hidden="true">info</mat-icon>
+      <p>{{ T.TRASH.AUTO_DELETE_INFO | translate: { days: retentionDays() } }}</p>
+    </div>
+
+    <div class="toolbar">
+      @if (selectedCount() > 0) {
+        <button
+          mat-stroked-button
+          color="warn"
+          (click)="deleteSelected()"
+        >
+          <mat-icon>delete_forever</mat-icon>
+          {{ T.TRASH.DELETE_PERMANENTLY | translate }} ({{ selectedCount() }})
+        </button>
+      } @else {
+        <button
+          mat-stroked-button
+          color="warn"
+          (click)="emptyTrash()"
+        >
+          <mat-icon>delete_forever</mat-icon>
+          {{ T.TRASH.EMPTY_TRASH | translate }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (trashedTasks().length === 0) {
+    <div class="empty-state">
+      <mat-icon>delete_outline</mat-icon>
+      <p>{{ T.TRASH.EMPTY_STATE | translate }}</p>
+    </div>
+  } @else {
+    <div class="task-list">
+      @for (item of trashedTasks(); track item.id) {
+        <trash-task-row
+          [item]="item"
+          [selected]="selectedIds().has(item.id)"
+          (selectedChange)="toggleItem(item.id, $event)"
+          (restored)="restore(item)"
+          (deleted)="deletePermanently(item)"
+        />
+      }
+    </div>
+  }
+</div>

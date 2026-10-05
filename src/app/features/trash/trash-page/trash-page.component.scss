@@ -1,0 +1,34 @@
+.trash-page {
+  padding: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.callout {
+  margin-bottom: var(--s2);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  opacity: 0.6;
+}
+
+.empty-state mat-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

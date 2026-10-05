@@ -98,6 +98,7 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { getDbDateStr, isDBDateStr } from '../../util/get-db-date-str';
 import { INBOX_PROJECT } from '../project/project.const';
 import { GlobalConfigService } from '../config/global-config.service';
+import { TrashService } from '../trash/trash.service';
 import { TaskLog } from '../../core/log';
 import { devError } from '../../util/dev-error';
 import { DEFAULT_GLOBAL_CONFIG } from '../config/default-global-config.const';
@@ -125,6 +126,7 @@ export class TaskService {
   private readonly _timeBlockDeleteSidecar = inject(TimeBlockDeleteSidecarService);
   private readonly _archiveTaskPromisesById = new Map<string, Promise<void>>();
   private readonly _taskTimeSync = inject(TaskTimeSyncService);
+  private readonly _trashService = inject(TrashService);
 
   currentTaskId$: Observable<string | null> = this._store.pipe(
     select(selectCurrentTaskId),
@@ -477,15 +479,13 @@ export class TaskService {
 
   remove(task: TaskWithSubTasks): void {
     this._taskTimeSync.clearOne(task.id);
-    // Clear via subTaskIds (always present) not subTasks: the keyboard-delete path
-    // passes a raw Task entity whose subTasks array is undefined (see #9280).
+    // Clear via subTaskIds (always present, not subTasks): keyboard-delete passes a raw Task with subTasks undefined (#9280).
     task.subTaskIds.forEach((id) => this._taskTimeSync.clearOne(id));
-    this._store.dispatch(TaskSharedActions.deleteTask({ task }));
+    this._trashService.deleteTask(task);
   }
 
   removeMultipleTasks(taskIds: string[]): void {
-    // Store issue metadata in the sidecar *before* dispatching, so the
-    // deleteIssueOnBulkTaskDelete$ effect can pick it up.
+    // Store issue metadata in the sidecar *before* dispatching, so the deleteIssueOnBulkTaskDelete$ effect can pick it up.
     const entities = this._taskEntities();
     const affectedTaskIds = Array.from(
       new Set(taskIds.flatMap((id) => [id, ...(entities[id]?.subTaskIds ?? [])])),
@@ -506,7 +506,7 @@ export class TaskService {
     this._timeBlockDeleteSidecar.set(
       tasks.filter((t) => !!t.dueWithTime).map((t) => t.id),
     );
-    this._store.dispatch(TaskSharedActions.deleteTasks({ taskIds, tasks }));
+    this._trashService.deleteTasks(taskIds, entities, tasks);
   }
 
   update(id: string, changedFields: Partial<Task>): void {

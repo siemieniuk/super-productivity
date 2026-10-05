@@ -126,6 +126,9 @@ export class TaskUiEffects {
         filter(({ task }) => !isBlankTask(task)),
         // A bulk delete confirms up front and shows no per-task undo.
         filter(() => !this._taskMultiSelectService.isBulkFeedbackSuppressed()),
+        // With trash enabled the delete is soft and the trash snack already
+        // offers the undo (restoreFromTrash); two stacked snacks would race.
+        filter(() => !this._globalConfigService.appFeatures().isTrashEnabled),
         tap(({ task }) => {
           this._snackService.open({
             translateParams: {
