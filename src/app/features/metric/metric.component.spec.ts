@@ -12,6 +12,7 @@ import { signal } from '@angular/core';
 import { T } from '../../t.const';
 import { INBOX_PROJECT } from '../project/project.const';
 import { DateTimeFormatService } from '../../core/date-time-format/date-time-format.service';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 describe('MetricComponent', () => {
   let component: MetricComponent;
@@ -96,7 +97,7 @@ describe('MetricComponent', () => {
     metricServiceSpy.hasData.and.returnValue(false);
 
     TestBed.configureTestingModule({
-      imports: [MetricComponent],
+      imports: [MetricComponent, TranslateModule.forRoot()],
       providers: [
         { provide: MetricService, useValue: metricServiceSpy },
         { provide: ProjectMetricsService, useValue: projectMetricsServiceSpy },
@@ -369,6 +370,70 @@ describe('MetricComponent', () => {
 
       expect(payload).toBeDefined();
       expect(payload.text).toContain('50'); // completed tasks
+    });
+  });
+
+  describe('chart axis titles', () => {
+    const useTranslations = (translations: Record<string, string>): void => {
+      const translateService = TestBed.inject(TranslateService);
+      translateService.setTranslation('en', {
+        F: { METRIC: { CMP: translations } },
+      });
+      translateService.use('en');
+    };
+
+    it('should translate the x title and each chart y title', () => {
+      useTranslations({
+        CHART_X_DAY: 'Tag',
+        CHART_Y_COUNT: 'Anzahl',
+        CHART_Y_MINUTES: 'Minuten',
+        CHART_Y_RATING: 'Bewertung',
+      });
+
+      const options = [
+        component.clickCounterChartOptions(),
+        component.stopWatchChartOptions(),
+        component.evaluationChartOptions(),
+      ];
+
+      expect(options.map((o) => o?.scales?.['x']?.title?.text)).toEqual([
+        'Tag',
+        'Tag',
+        'Tag',
+      ]);
+      expect(options.map((o) => o?.scales?.['y']?.title?.text)).toEqual([
+        'Anzahl',
+        'Minuten',
+        'Bewertung',
+      ]);
+    });
+
+    it('should not set a y title on the focus session chart', () => {
+      expect(component.focusSessionChartOptions()?.scales?.['y']?.title).toBeUndefined();
+    });
+
+    it('should keep the fixed scale on the evaluation chart', () => {
+      const yScale = component.evaluationChartOptions()?.scales?.['y'];
+
+      expect(yScale?.min).toBe(0);
+      expect(yScale?.max).toBe(4);
+    });
+
+    it('should update titles when the language changes', () => {
+      useTranslations({ CHART_X_DAY: 'Day' });
+      expect(component.clickCounterChartOptions()?.scales?.['x']?.title?.text).toBe(
+        'Day',
+      );
+
+      const translateService = TestBed.inject(TranslateService);
+      translateService.setTranslation('de', {
+        F: { METRIC: { CMP: { CHART_X_DAY: 'Tag' } } },
+      });
+      translateService.use('de');
+
+      expect(component.clickCounterChartOptions()?.scales?.['x']?.title?.text).toBe(
+        'Tag',
+      );
     });
   });
 });
